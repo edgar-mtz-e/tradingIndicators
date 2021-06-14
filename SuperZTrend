@@ -1,0 +1,97 @@
+strategy("Filtering", shorttitle="Filtering",overlay=true,precision=6, initial_capital=10000,calc_on_every_tick=true, pyramiding=10, default_qty_type=strategy.fixed, default_qty_value=10000, currency=currency.EUR)
+spz_src5 = input(close)
+spz_tf 	 = input(1440)
+spz_len5 = timeframe.isintraday and timeframe.multiplier >= 1  ? 	spz_tf / timeframe.multiplier * 7 		:   timeframe.isintraday and timeframe.multiplier < 60 				?   60 / timeframe.multiplier * 24 * 7 				: 7
+
+spz_ma = ema(spz_src5*volume, spz_len5) / ema(volume, spz_len5)
+spz_src1 = spz_ma
+
+p(spz_src1, spz_len5) =>
+    n = 0.0
+    s = 0.0
+    for i = 0 to spz_len5 - 1
+        w = (spz_len5 - i) * spz_len5
+        n := n + w
+        s := s + spz_src5[i] * w
+    s / n
+
+spz_hm = 2.0 * p(spz_src1, floor(spz_len5 / 2)) - p(spz_src1, spz_len5)
+spz_vhma = p(spz_hm, floor(sqrt(spz_len5)))
+spz_lineColor = spz_vhma > spz_vhma[1] ? color.lime : color.red
+//plot(spz_vhma, title="spz_vhma", color=spz_lineColor ,linewidth=3)
+spz_hColor = true,vis = true
+spz_hu = spz_hColor ? (spz_vhma > spz_vhma[2] ? #00ff00 : #ff0000) : #ff9800
+
+spz_vl = spz_vhma[0]
+spz_ll = spz_vhma[1]
+//spz_m1 = plot(spz_vl, color=spz_hu, linewidth=1, transp=60)
+//spz_m2 = plot(vis ? spz_ll : na,  color=spz_hu, linewidth=2, transp=80)
+
+//fill(spz_m1, spz_m2,  color=spz_hu, transp=70)
+//
+
+spz_b = timeframe.isintraday and timeframe.multiplier >= 1 	? 60 / timeframe.multiplier * 7 	: timeframe.isintraday and timeframe.multiplier < 60 		? 60 / timeframe.multiplier * 24 * 7 		: 7
+
+
+
+//
+spz_res5 = input("D", type=input.resolution)
+
+spz_o  = security(syminfo.tickerid, spz_res5, open, barmerge.gaps_off, barmerge.lookahead_on)
+spz_c  = security(syminfo.tickerid, spz_res5, close, barmerge.gaps_off, barmerge.lookahead_on)
+spz_hz = security(syminfo.tickerid, spz_res5, high, barmerge.gaps_off, barmerge.lookahead_on)
+spz_l  = security(syminfo.tickerid, spz_res5, low, barmerge.gaps_off, barmerge.lookahead_on)
+
+
+
+spz_col = spz_c >= spz_o ? color.lime : color.red
+
+//spz_ppo = plot(spz_b ? spz_o >= spz_c ? spz_hz : spz_l : spz_o, color=spz_col, title="Open", style=plot.style_stepline, transp=100)
+//spz_ppc = plot(spz_b ? spz_o <= spz_c ? spz_hz : spz_l : spz_c, color=spz_col, title="Close", style=plot.style_stepline, transp=100)
+
+//plot(spz_b and spz_hz > spz_c ? spz_hz : na, color=spz_col, title="High", style=plot.style_circles, linewidth=2,transp=60)
+//plot(spz_b and spz_l < spz_c ? spz_l : na, color=spz_col, title="Low", style=plot.style_circles,linewidth=2, transp=60)
+//fill(spz_ppo, spz_ppc, spz_col)
+
+//
+// INPUTS //
+spz_st_mult   = input(1,   title = 'SuperTrend Multiplier', minval = 0, maxval = 100, step = 0.01)
+spz_st_period = input(50, title = 'SuperTrend Period',     minval = 1)
+
+// CALCULATIONS //
+spz_up_lev =spz_l - (spz_st_mult * atr(spz_st_period))
+spz_dn_lev = spz_hz + (spz_st_mult * atr(spz_st_period))
+
+spz_up_trend   = 0.0
+spz_up_trend   := spz_c[1] > spz_up_trend[1]   ? max(spz_up_lev, spz_up_trend[1])   : spz_up_lev
+
+spz_down_trend = 0.0
+spz_down_trend := spz_c[1] < spz_down_trend[1] ? min(spz_dn_lev, spz_down_trend[1]) : spz_dn_lev
+
+// Calculate trend var
+spz_trend = 0
+spz_trend := spz_c > spz_down_trend[1] ? 1: spz_c < spz_up_trend[1] ? -1 : nz(spz_trend[1], 1)
+
+// Calculate SuperTrend Line
+spz_st_line = spz_trend ==1 ? spz_up_trend : spz_down_trend
+
+// Plotting
+//plot(spz_st_line[1], color = spz_trend == 1 ? color.green : color.red , style = plot.style_cross, linewidth = 2, title = "SuperTrend")
+spz_buy=crossover( spz_c, spz_st_line)
+spz_sell=crossunder(spz_c, spz_st_line)
+signal=input(false)
+
+/////////////// Plotting /////////////// 
+//plotshape(signal and spz_buy, style=shape.triangleup, size=size.normal, location=location.belowbar, color=color.lime)
+//plotshape(signal and spz_sell, style=shape.triangledown, size=size.normal, location=location.abovebar, color=color.red)
+
+
+if (spz_buy)
+    strategy.entry("My Long Entry Id", strategy.long)
+
+if (spz_sell)
+    strategy.entry("My Short Entry Id", strategy.short)
+
+
+
+//if(spz_up_trend)	
