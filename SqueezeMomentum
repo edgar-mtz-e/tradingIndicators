@@ -1,0 +1,41 @@
+//@version=4
+//strategy("Filtering", shorttitle="Filtering",overlay=true,precision=6, initial_capital=10000,calc_on_every_tick=true, pyramiding=10, default_qty_type=strategy.fixed, default_qty_value=10000, currency=currency.EUR)
+study(shorttitle = "SQZMOM_LB", title="Squeeze Momentum Indicator [LazyBear]", overlay=false)
+	
+	
+sqz_length 		= 20
+sqz_mult 		= 2.0
+sqz_lengthKC	= 20
+sqz_multKC 		= 1.5
+useTrueRange= true
+ 
+// Calculate BB
+sqz_source = close
+sqz_basis = sma(sqz_source, sqz_length)
+sqz_dev = sqz_mult * stdev(sqz_source, sqz_length)
+sqz_upperBB = sqz_basis + sqz_dev
+sqz_lowerBB = sqz_basis - sqz_dev
+ 
+// Calculate KC
+sqz_ma = sma(sqz_source, sqz_lengthKC)
+sqz_range = useTrueRange ? tr : (high - low)
+sqz_rangema = sma(sqz_range, sqz_lengthKC)
+sqz_upperKC = sqz_ma + sqz_rangema * sqz_multKC
+sqz_lowerKC = sqz_ma - sqz_rangema * sqz_multKC
+ 
+sqzOn  = (sqz_lowerBB > sqz_lowerKC) and (sqz_upperBB < sqz_upperKC)
+sqzOff = (sqz_lowerBB < sqz_lowerKC) and (sqz_upperBB > sqz_upperKC)
+noSqz  = (sqzOn == false) and (sqzOff == false)
+ 
+sqz_val = linreg(sqz_source  -  avg(avg(highest(high, sqz_lengthKC), lowest(low, sqz_lengthKC)),sma(close,sqz_lengthKC)),  sqz_lengthKC,0)
+
+
+ 
+sqz_bcolor = iff( sqz_val > 0,             iff( sqz_val > nz(sqz_val[1]), color.rgb(25, 118, 210),color.rgb(17, 78, 138)),            iff( sqz_val < nz(sqz_val[1]), color.rgb(166, 0, 0), color.rgb(83, 0, 0)))
+sqz_scolor = noSqz ? color.blue : sqzOn ? color.black : color.yellow 
+plot(sqz_val, color=sqz_bcolor, style=plot.style_area, linewidth=2)
+plot(0, color=sqz_scolor, style=3, linewidth=2)
+
+
+//entrance
+//if(sqz_val < nz(sqz_val[1]) )
